@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	eniconfigscheme "github.com/aws/amazon-vpc-cni-k8s/pkg/apis/crd/v1alpha1"
@@ -94,8 +95,23 @@ func CreateKubeClientCache(restCfg *rest.Config, scheme *runtime.Scheme, filterM
 	return cache, nil
 }
 
+var (
+	signalCtxOnce sync.Once
+	signalCtx     context.Context
+)
+
+// signalContext returns a context cancelled on SIGINT/SIGTERM. ctrl.SetupSignalHandler
+// panics when called more than once per process, but the kube client (and its cache)
+// can be created again, so the handler is installed only once and shared.
+func signalContext() context.Context {
+	signalCtxOnce.Do(func() {
+		signalCtx = ctrl.SetupSignalHandler()
+	})
+	return signalCtx
+}
+
 func StartKubeClientCache(cache cache.Cache) {
-	stopChan := ctrl.SetupSignalHandler()
+	stopChan := signalContext()
 	go func() {
 		cache.Start(stopChan)
 	}()

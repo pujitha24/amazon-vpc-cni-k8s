@@ -34,3 +34,11 @@ func TestGetNode(t *testing.T) {
 	_, err = GetNode(ctx, k8sClient)
 	assert.Error(t, err)
 }
+
+func TestSignalContextCanBeCalledRepeatedly(t *testing.T) {
+	assert.NotPanics(t, func() {
+		first := signalContext()
+		second := signalContext()
+		assert.Equal(t, first, second)
+	})
+}
